@@ -1,5 +1,6 @@
 package com.ermetic.loadtest;
 
+import com.mongodb.client.ClientSession;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;
@@ -121,4 +122,7 @@ public class MongoErmeticClient {
         return getDatabase(databaseName).getCollection(collectionName);
     }
 
+    public ClientSession createSession() {
+        return mongoClient.startSession();
+    }
 }

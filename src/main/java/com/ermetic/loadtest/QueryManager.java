@@ -21,7 +21,15 @@ public class QueryManager {
         this.client = client;
     }
 
-    public List<Document> getQueries(String ctx) {
+    private double calculateQueryTargetingRatio(Document doc) {
+        Document attr = doc.get("attr", Document.class);
+        int docsExamined = attr.getInteger("docsExamined");
+        int nreturned = attr.getInteger("nreturned");
+
+        return (double)docsExamined / (double)nreturned;
+    }
+
+    public List<Document> getQueries(String ctx, int maxQueryTargetingRatio) {
         MongoCollection<Document> logs = client.getCollection("mongoDBAnalysis", "logs");
         FindIterable<Document> findIterable = logs.find(new Document()
                 .append("ctx", ctx))
@@ -41,32 +49,53 @@ public class QueryManager {
                     Document command = attr.get("command", Document.class);
                     // TODO: update?
                     if (command.containsKey("find")) {
-                        String namespace = attr.getString("ns");
-                        String targetDatabase = namespace.split("\\.")[0];
 
-                        command.remove("$readPreference");
-                        command.remove("lsid");
-                        command.remove("$db");
-                        command.remove("$clusterTime");
-                        result.add(new Document()
-                                .append("db", targetDatabase)
-                                .append("command", command));
-                        /*
-                         * MongoDatabase queryDatabase = client.getDatabase(targetDatabse);
-                         * Document result = queryDatabase.runCommand(command);
-                         */
+                        if (calculateQueryTargetingRatio(document) < maxQueryTargetingRatio) {
+                            String namespace = attr.getString("ns");
+                            String targetDatabase = namespace.split("\\.")[0];
+
+                            command.remove("$readPreference");
+                            command.remove("lsid");
+                            command.remove("$db");
+                            command.remove("$clusterTime");
+                            command.remove("hint");
+                            result.add(new Document()
+                                    .append("db", targetDatabase)
+                                    .append("command", command));
+                            /*
+                            * MongoDatabase queryDatabase = client.getDatabase(targetDatabse);
+                            * Document result = queryDatabase.runCommand(command);
+                            */
+                        }
                     }
                     if (attr.getString("type").equals("update")) {
                         String namespace = attr.getString("ns");
                         String targetDatabase = namespace.split("\\.")[0];
                         String targetCollection = namespace.split("\\.")[1];
-                        result.add(new Document()
-                            .append("db", targetDatabase)
-                            .append("command", new Document()
-                                .append("update", targetCollection)
-                                .append("updates", Arrays.asList(command))
-                                )
-                        );
+                        if (command.containsKey("u")) {
+                            result.add(new Document()
+                                .append("db", targetDatabase)
+                                .append("command", new Document()
+                                    .append("update", targetCollection)
+                                    .append("updates", Arrays.asList(command))
+                                    )
+                            );
+                        }
+                    }
+                    if (command.containsKey("aggregate")) {
+                        if (calculateQueryTargetingRatio(document) < maxQueryTargetingRatio) {
+                            String namespace = attr.getString("ns");
+                            String targetDatabase = namespace.split("\\.")[0];
+
+                            command.remove("$readPreference");
+                            command.remove("lsid");
+                            command.remove("$db");
+                            command.remove("$clusterTime");
+                            command.remove("hint");
+                            result.add(new Document()
+                                .append("db", targetDatabase)
+                                .append("command", command));
+                        }
                     }
                 }
             }
@@ -79,7 +108,8 @@ public class QueryManager {
         MongoCollection<Document> contexts = client.getCollection("mongoDBAnalysis", "contexts");
 
         AggregateIterable<Document> aggregate = contexts.aggregate(Arrays.asList(
-            Aggregates.sample(sample)
+//            Aggregates.sample(sample)
+            Aggregates.limit(sample)
         ));
         ArrayList<String> result = new ArrayList<String>();
         aggregate.forEach((d) -> {
