@@ -2,6 +2,7 @@ source config.sh
 
 for server in ${servers[@]}; do
   echo "$server"
+  #ssh ec2-user@$server -o ServerAliveInterval=30  "sudo killall java"
   #scp loadTestErmetic_20231222.jar run.sh ec2-user@$server:.
   rsync -avh loadTestErmetic_20231222.jar ec2-user@$server:.
   rsync -avh run.sh ec2-user@$server:.

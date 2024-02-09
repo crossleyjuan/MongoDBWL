@@ -79,7 +79,7 @@ public class ErmeticLoadTestMain {
                 //Shuffles the list so it becomes more random
                 Collections.shuffle(contexts);
                 for (String ctx : contexts) {
-                    executor.submit(new ExecuteRandomQueries(mongoErmeticClient, ermeticOps.duration, ctx, ermeticOps.queryTargettingMaxRatio));
+                    executor.submit(new ExecuteRandomQueries(mongoErmeticClient, ctx, ermeticOps));
                 }
 
                 logger.info("Executing shutdown waiting for " + ermeticOps.duration + " minutes to complete");

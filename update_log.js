@@ -32,5 +32,6 @@ var agg = [
   },
 ];
 
+db.getSiblingDB("mongoDBAnalysis").logs.createIndex({ "ctx": 1, "t": 1 });
 db.getSiblingDB("mongoDBAnalysis").logs.aggregate(agg);
 

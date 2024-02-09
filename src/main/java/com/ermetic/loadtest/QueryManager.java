@@ -5,17 +5,22 @@ import java.util.Arrays;
 import java.util.List;
 
 import javax.management.Query;
+import javax.print.attribute.standard.DocumentName;
 
 import org.bson.Document;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import com.mongodb.CursorType;
+import com.mongodb.ReadPreference;
 import com.mongodb.client.AggregateIterable;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoCollection;
-import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Aggregates;
 
 public class QueryManager {
     private MongoErmeticClient client;
+    private static Logger logger = LoggerFactory.getLogger(QueryManager.class);;
 
     public QueryManager(MongoErmeticClient client) {
         this.client = client;
@@ -29,8 +34,9 @@ public class QueryManager {
         return (double)docsExamined / (double)nreturned;
     }
 
-    public List<Document> getQueries(String ctx, int maxQueryTargetingRatio) {
-        MongoCollection<Document> logs = client.getCollection("mongoDBAnalysis", "logs");
+    public List<Document> getQueries(String ctx, ErmeticLoadtestOptions options) {
+        int maxQueryTargetingRatio = options.queryTargettingMaxRatio;
+        MongoCollection<Document> logs = client.getCollection("mongoDBAnalysis", "logs").withReadPreference(ReadPreference.secondaryPreferred());
         FindIterable<Document> findIterable = logs.find(new Document()
                 .append("ctx", ctx))
                 .sort(new Document()
@@ -48,9 +54,9 @@ public class QueryManager {
                 if (attr.containsKey("command")) {
                     Document command = attr.get("command", Document.class);
                     // TODO: update?
-                    if (command.containsKey("find")) {
+                    if (command.containsKey("find") && options.includeFind) {
 
-                        if (calculateQueryTargetingRatio(document) < maxQueryTargetingRatio) {
+                        if (isBelowTargetRatio(maxQueryTargetingRatio, document)) {
                             String namespace = attr.getString("ns");
                             String targetDatabase = namespace.split("\\.")[0];
 
@@ -58,7 +64,7 @@ public class QueryManager {
                             command.remove("lsid");
                             command.remove("$db");
                             command.remove("$clusterTime");
-                            command.remove("hint");
+//                            command.remove("hint");
                             result.add(new Document()
                                     .append("db", targetDatabase)
                                     .append("command", command));
@@ -68,7 +74,7 @@ public class QueryManager {
                             */
                         }
                     }
-                    if (attr.getString("type").equals("update")) {
+                    if (attr.getString("type").equals("update") && options.includeUpdates) {
                         String namespace = attr.getString("ns");
                         String targetDatabase = namespace.split("\\.")[0];
                         String targetCollection = namespace.split("\\.")[1];
@@ -82,8 +88,21 @@ public class QueryManager {
                             );
                         }
                     }
-                    if (command.containsKey("aggregate")) {
-                        if (calculateQueryTargetingRatio(document) < maxQueryTargetingRatio) {
+                    if (attr.getString("type").equals("command") && command.containsKey("findAndModify") && options.includeFindAndModify) {
+                        command.remove("$readPreference");
+                        command.remove("lsid");
+                        command.remove("$db");
+                        command.remove("$clusterTime");
+                        command.remove("txnNumber");
+                        String namespace = attr.getString("ns");
+                        String targetDatabase = namespace.split("\\.")[0];
+                        result.add(new Document()
+                            .append("db", targetDatabase)
+                            .append("command", command)
+                        );
+                    }
+                    if (command.containsKey("aggregate") && options.includeAggregate) {
+                        if (isBelowTargetRatio(maxQueryTargetingRatio, document)) {
                             String namespace = attr.getString("ns");
                             String targetDatabase = namespace.split("\\.")[0];
 
@@ -91,7 +110,7 @@ public class QueryManager {
                             command.remove("lsid");
                             command.remove("$db");
                             command.remove("$clusterTime");
-                            command.remove("hint");
+                            //command.remove("hint");
                             result.add(new Document()
                                 .append("db", targetDatabase)
                                 .append("command", command));
@@ -104,8 +123,16 @@ public class QueryManager {
         return result;
     }
 
+    private boolean isBelowTargetRatio(int maxQueryTargetingRatio, Document document) {
+        try {
+            return calculateQueryTargetingRatio(document) < maxQueryTargetingRatio;
+        } catch (Exception e) {
+            return true;
+        }
+    }
+
     public List<String> getContexts(int sample) {
-        MongoCollection<Document> contexts = client.getCollection("mongoDBAnalysis", "contexts");
+        MongoCollection<Document> contexts = client.getCollection("mongoDBAnalysis", "contexts").withReadPreference(ReadPreference.secondaryPreferred());
 
         AggregateIterable<Document> aggregate = contexts.aggregate(Arrays.asList(
 //            Aggregates.sample(sample)
