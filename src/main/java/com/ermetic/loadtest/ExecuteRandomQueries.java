@@ -19,12 +19,12 @@ public class ExecuteRandomQueries implements Runnable {
     String threadName;
     int duration;
     MongoErmeticClient mongoErmeticClient;
-    private String context;
+    private ContextData context;
     private int maxQueryTargetRatio;
     private boolean skipExhaust;
     private ErmeticLoadtestOptions options;
 
-    public ExecuteRandomQueries(MongoErmeticClient mongoErmeticClient, String context, ErmeticLoadtestOptions options) {
+    public ExecuteRandomQueries(MongoErmeticClient mongoErmeticClient, ContextData context, ErmeticLoadtestOptions options) {
 
         this.duration = options.duration;
         this.mongoErmeticClient = mongoErmeticClient;
@@ -37,8 +37,7 @@ public class ExecuteRandomQueries implements Runnable {
     public void run() {
         // logger.info("Thread " + context + " starting");
         try {
-            QueryManager manager = new QueryManager(mongoErmeticClient);
-            List<Document> commands = manager.getQueries(context, options);
+            List<Document> commands = context.getQueries();
 
             long end = System.currentTimeMillis() + duration * 1000L;
             int iteration = 0;
@@ -100,17 +99,16 @@ public class ExecuteRandomQueries implements Runnable {
                 if (command.containsKey("findAndModify")) {
                     analysisResult.append("type", "findAndModify");
                     try {
-                        database.runCommand(session, command);
+                        Document result = database.runCommand(session, command);
                     } catch (Exception e) {
                         logger.error(e.getMessage(), e);
                     }
-                }
-                if (command.containsKey("update")) {
+                } else if (command.containsKey("update")) {
                     analysisResult.append("type", "update");
                     try {
                         Document result = database.runCommand(session, command);
-                        int matched = result.getInteger("n");
-                        int modified = result.getInteger("nModified");
+                        Integer matched = result.getInteger("n");
+                        Integer modified = result.getInteger("nModified");
 
                         analysisResult.append("matched", matched);
                         analysisResult.append("modified", modified);
@@ -123,7 +121,7 @@ public class ExecuteRandomQueries implements Runnable {
                 iteration++;
             }
             if (iteration > 0) {
-                logger.info("Context completed " + context + " iterations: " + iteration);
+                logger.info("Context completed " + context.getCtxId() + " iterations: " + iteration);
             }
             /*
             if (queryAnalysisDoc.size() > 0) {

@@ -52,8 +52,13 @@ public class ErmeticLoadTestMain {
             if (ermeticOps.connectionDetails != null){
                 mongoErmeticClient = new MongoErmeticClient(ermeticOps.connectionDetails);
             }
-            List<String> contexts = new ArrayList<String>();
-            QueryManager queryManager = new QueryManager(mongoErmeticClient);
+            ThreadPoolExecutor executor =  (ThreadPoolExecutor) Executors.newFixedThreadPool(ermeticOps.numThreads);
+
+            List<ContextData> contexts = new ArrayList<ContextData>();
+
+            logger.info("Starting test");
+            //List<Thread> threads = new ArrayList<Thread>();
+            QueryManager queryManager = new QueryManager(mongoErmeticClient, ermeticOps);
             if (ermeticOps.contextFile != null) {
                 Path contextFilePath = Paths.get(ermeticOps.contextFile);
                 Stack<String> tempContexts = new Stack<String>();
@@ -66,26 +71,17 @@ public class ErmeticLoadTestMain {
                             throw new FileNotFoundException("File " + ermeticOps.contextFile + " not found");
                         }
                     }
-                    contexts.add(tempContexts.pop());
+                    String ctxId = tempContexts.pop();
+                    queryManager.addContext(executor, ctxId);
                 }
             } else {
-                contexts = queryManager.getContexts(ermeticOps.contexts);
+                queryManager.addContexts(executor, ermeticOps.contexts);
             }
 
-            //List<Thread> threads = new ArrayList<Thread>();
-            if (mongoErmeticClient != null) {
-                ThreadPoolExecutor executor =  (ThreadPoolExecutor) Executors.newFixedThreadPool(ermeticOps.numThreads);
+            logger.info("Executing shutdown waiting for " + ermeticOps.duration + " minutes to complete");
+            executor.shutdown();
+            executor.awaitTermination(ermeticOps.duration, TimeUnit.MINUTES);
 
-                //Shuffles the list so it becomes more random
-                Collections.shuffle(contexts);
-                for (String ctx : contexts) {
-                    executor.submit(new ExecuteRandomQueries(mongoErmeticClient, ctx, ermeticOps));
-                }
-
-                logger.info("Executing shutdown waiting for " + ermeticOps.duration + " minutes to complete");
-                executor.shutdown();
-                executor.awaitTermination(ermeticOps.duration, TimeUnit.MINUTES);
-            } 
             logger.info("Completed");
         }
         catch(Exception e){

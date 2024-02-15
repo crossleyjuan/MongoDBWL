@@ -1,4 +1,5 @@
 var agg = [
+  { $match: { "msg": "Slow query" } },
   {
     $group:
       /**
@@ -32,6 +33,8 @@ var agg = [
   },
 ];
 
+db.getSiblingDB("mongoDBAnalysis").contexts.drop();
+db.getSiblingDB("mongoDBAnalysis").logs.createIndex({ "msg": 1 });
 db.getSiblingDB("mongoDBAnalysis").logs.createIndex({ "ctx": 1, "t": 1 });
 db.getSiblingDB("mongoDBAnalysis").logs.aggregate(agg);
 
