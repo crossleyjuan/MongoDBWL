@@ -1,5 +1,10 @@
 This script allows to reproduce a workload to perform load tests.
 
+# Notes
+===============
+
+diagnosticDataCollectionVerboseTCMalloc
+
 # Preparation steps
 ===============
 
@@ -48,7 +53,8 @@ db.logs.aggregate([
 Create an index in the logs collection that would avoid COLLSCANS in the support collection:
 
 ```javascript
-db.logs.createIndex({ "ctx": 1, "t": 1 })
+db.getSiblingDB("mongoDBAnalysis").logs.createIndex({ "msg": 1, "ctx": 1, "t": 1 });
+db.getSiblingDB("mongoDBAnalysis").logs.createIndex({ "ctx": 1, "t": 1 });
 ```
 
 3. Create a run.sh file like this:
