@@ -1,4 +1,4 @@
-package com.ermetic.loadtest;
+package com.mongodb.loadtest;
 
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -90,7 +90,7 @@ public class QueryTemplateDefinition
 
     public QueryTemplateDefinition()
     {
-        logger = LoggerFactory.getLogger(MongoErmeticClient.class);
+        logger = LoggerFactory.getLogger(MongoMongoDBClient.class);
         rd = new Random();
         
         //Entity

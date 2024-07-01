@@ -1,4 +1,4 @@
-package com.ermetic.loadtest;
+package com.mongodb.loadtest;
 
 import org.bson.Document;
 

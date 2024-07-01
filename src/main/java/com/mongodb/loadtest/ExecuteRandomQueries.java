@@ -1,4 +1,4 @@
-package com.ermetic.loadtest;
+package com.mongodb.loadtest;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -18,16 +18,16 @@ public class ExecuteRandomQueries implements Runnable {
     private static Logger logger = LoggerFactory.getLogger(ExecuteRandomQueries.class);;
     String threadName;
     int duration;
-    MongoErmeticClient mongoErmeticClient;
+    MongoMongoDBClient mongoMongoDBClient;
     private ContextData context;
     private int maxQueryTargetRatio;
     private boolean skipExhaust;
-    private ErmeticLoadtestOptions options;
+    private MongoDBLoadtestOptions options;
 
-    public ExecuteRandomQueries(MongoErmeticClient mongoErmeticClient, ContextData context, ErmeticLoadtestOptions options) {
+    public ExecuteRandomQueries(MongoMongoDBClient mongoMongoDBClient, ContextData context, MongoDBLoadtestOptions options) {
 
         this.duration = options.duration;
-        this.mongoErmeticClient = mongoErmeticClient;
+        this.mongoMongoDBClient = mongoMongoDBClient;
         this.context = context;
         this.maxQueryTargetRatio = options.queryTargettingMaxRatio;
         this.skipExhaust = options.skipExhaust;
@@ -45,14 +45,14 @@ public class ExecuteRandomQueries implements Runnable {
             List<Document> queryAnalysisDoc = new ArrayList<Document>();
 
             Iterator<Document> itCommands = commands.iterator();
+            ClientSession session = mongoMongoDBClient.createSession();
             while (System.currentTimeMillis() < end) {
                 if (!itCommands.hasNext()) {
                     break;
                 }
                 Document nextCommand = itCommands.next();
                 String databaseName = nextCommand.getString("db");
-                MongoDatabase database = mongoErmeticClient.getDatabase(databaseName);
-                ClientSession session = mongoErmeticClient.createSession();
+                MongoDatabase database = mongoMongoDBClient.getDatabase(databaseName);
                 Document command = nextCommand.get("command", Document.class);
                 Document analysisResult = new Document();
                 analysisResult.append("db", databaseName);
@@ -65,13 +65,14 @@ public class ExecuteRandomQueries implements Runnable {
                         command.remove("$readPreference");
                     }
                     Document result = database.runCommand(session, command, readPreference);
-
                     analysisResult.append("query", command);
                     int queryResult = result.get("cursor", Document.class).get("firstBatch", List.class).size();
                     if (queryResult == 0) {
+                        if (false && command.containsKey("filter") && !command.get("filter", Document.class).containsKey("_id")) {
+                            logger.info("empty results: " + nextCommand.toJson());
+                        }
                         emptyIterations++;
                     }
-                    Document originalResult = result;
                     while (true && !skipExhaust) {
                         Document cursor = result.get("cursor", Document.class);
 
@@ -110,22 +111,26 @@ public class ExecuteRandomQueries implements Runnable {
                         Integer matched = result.getInteger("n");
                         Integer modified = result.getInteger("nModified");
 
+                        if (false && matched == 0) {
+                            logger.info("empty results: " + nextCommand.toJson());
+                        }
                         analysisResult.append("matched", matched);
                         analysisResult.append("modified", modified);
                     } catch (Exception e) {
-                        logger.error(e.getMessage(), e);
+                        logger.error("ctx: " + nextCommand.toJson() + ". Exception: " + e.getMessage(), e);
                     }
                 }
 
                 //queryAnalysisDoc.add(analysisResult);
                 iteration++;
             }
+            session.close();
             if (iteration > 0) {
                 logger.info("Context completed " + context.getCtxId() + " iterations: " + iteration);
             }
             /*
             if (queryAnalysisDoc.size() > 0) {
-                mongoErmeticClient.getMongoClient().getDatabase("mongoDBAnalysis").getCollection("queryResult")
+                mongoMongoDBClient.getMongoClient().getDatabase("mongoDBAnalysis").getCollection("queryResult")
                         .insertMany(queryAnalysisDoc);
             } else {
                 logger.info("Empty context " + context);

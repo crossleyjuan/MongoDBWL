@@ -59,7 +59,7 @@ db.getSiblingDB("mongoDBAnalysis").logs.createIndex({ "ctx": 1, "t": 1 });
 
 3. Create a run.sh file like this:
 ```bash
-java -jar loadTestErmetic_20231222.jar -u "mongodb+srv://user:password@customer.mpxmc.mongodb.net/?retryWrites=true" -t 20 -d 60 -c 100000
+java -jar loadTest.jar -u "mongodb+srv://user:password@customer.mpxmc.mongodb.net/?retryWrites=true" -t 20 -d 60 -c 100000
 ```
 
 Note: you can use the run.sh.sample as template
@@ -71,7 +71,7 @@ servers=( "34.242.75.105" "34.245.92.139" "34.250.46.169" "52.213.157.161" "34.2
 
 for server in ${servers[@]}; do
   echo "$server"
-  rsync -avh loadTestErmetic_20231222.jar ec2-user@$server:.
+  rsync -avh loadTest.jar ec2-user@$server:.
   rsync -avh run.sh ec2-user@$server:.
 done
 for server in ${servers[@]}; do

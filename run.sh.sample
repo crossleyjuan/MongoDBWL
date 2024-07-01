@@ -1,1 +1,1 @@
-java -jar loadTestErmetic_20231222.jar -u "MONGODBURI" -t 20 -d 60 -c 100000
+java -jar loadTestMongoDB_20231222.jar -u "MONGODBURI" -t 20 -d 60 -c 100000

@@ -1,4 +1,4 @@
-package com.ermetic.loadtest;
+package com.mongodb.loadtest;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -18,19 +18,19 @@ import java.nio.file.Paths;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ErmeticLoadTestMain {
-    private static Logger logger = LoggerFactory.getLogger(ErmeticLoadTestMain.class);;
+public class MongoDBLoadTestMain {
+    private static Logger logger = LoggerFactory.getLogger(MongoDBLoadTestMain.class);;
 
     public static void main(String[] args) {
 
-        ErmeticLoadtestOptions ermeticOps;
+        MongoDBLoadtestOptions MongoDBOps;
         LogManager.getLogManager().reset();
-        MongoErmeticClient mongoErmeticClient = null;
+        MongoMongoDBClient mongoMongoDBClient = null;
 
         /*
         String[] args2 = new String[] {
             "-u",
-            "mongodb+srv://juancrossley:JpnNqSFKnD7sokWS@ermetic.mpxmc.mongodb.net/?retryWrites=true",
+            "mongodb+srv://juancrossley:JpnNqSFKnD7sokWS@MongoDB.mpxmc.mongodb.net/?retryWrites=true",
             "-t",
             "10",
             "-d",
@@ -40,47 +40,49 @@ public class ErmeticLoadTestMain {
         };
         */
 
-        logger.info("Load Test Ermetic");
+        logger.info("Load Test MongoDB");
         
         try {
-            ermeticOps = new ErmeticLoadtestOptions(args);
+            MongoDBOps = new MongoDBLoadtestOptions(args);
             // Quit after displaying help message
-            if (ermeticOps.helpOnly) {
+            if (MongoDBOps.helpOnly) {
                 return;
             }
 
-            if (ermeticOps.connectionDetails != null){
-                mongoErmeticClient = new MongoErmeticClient(ermeticOps.connectionDetails);
+            if (MongoDBOps.connectionDetails != null){
+                mongoMongoDBClient = new MongoMongoDBClient(MongoDBOps.connectionDetails);
             }
-            ThreadPoolExecutor executor =  (ThreadPoolExecutor) Executors.newFixedThreadPool(ermeticOps.numThreads);
-
-            List<ContextData> contexts = new ArrayList<ContextData>();
+            ThreadPoolExecutor executor =  (ThreadPoolExecutor) Executors.newFixedThreadPool(MongoDBOps.numThreads);
 
             logger.info("Starting test");
             //List<Thread> threads = new ArrayList<Thread>();
-            QueryManager queryManager = new QueryManager(mongoErmeticClient, ermeticOps);
-            if (ermeticOps.contextFile != null) {
-                Path contextFilePath = Paths.get(ermeticOps.contextFile);
+            QueryManager queryManager = new QueryManager(mongoMongoDBClient, MongoDBOps);
+            if (MongoDBOps.contextFile != null) {
+                Path contextFilePath = Paths.get(MongoDBOps.contextFile);
                 Stack<String> tempContexts = new Stack<String>();
-                while (contexts.size() < ermeticOps.contexts) {
+                int contextsRead = 0;
+                while (contextsRead < MongoDBOps.contexts) {
                     if (tempContexts.size() == 0) {
                         if (Files.exists(contextFilePath, LinkOption.NOFOLLOW_LINKS)) {
                             tempContexts.addAll(Files.readAllLines(contextFilePath));
                             Collections.shuffle(tempContexts);
                         } else {
-                            throw new FileNotFoundException("File " + ermeticOps.contextFile + " not found");
+                            throw new FileNotFoundException("File " + MongoDBOps.contextFile + " not found");
                         }
                     }
                     String ctxId = tempContexts.pop();
-                    queryManager.addContext(executor, ctxId);
+                    if (queryManager.addContext(executor, ctxId)) {
+                        contextsRead++;
+                    }
+                    
                 }
             } else {
-                queryManager.addContexts(executor, ermeticOps.contexts);
+                queryManager.addContexts(executor, MongoDBOps.contexts);
             }
 
-            logger.info("Executing shutdown waiting for " + ermeticOps.duration + " minutes to complete");
+            logger.info("Executing shutdown waiting for " + MongoDBOps.duration + " minutes to complete");
             executor.shutdown();
-            executor.awaitTermination(ermeticOps.duration, TimeUnit.MINUTES);
+            executor.awaitTermination(MongoDBOps.duration, TimeUnit.MINUTES);
 
             logger.info("Completed");
         }

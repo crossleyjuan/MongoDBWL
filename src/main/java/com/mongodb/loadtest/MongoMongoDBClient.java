@@ -1,4 +1,4 @@
-package com.ermetic.loadtest;
+package com.mongodb.loadtest;
 
 import com.mongodb.client.ClientSession;
 import com.mongodb.client.MongoClient;
@@ -16,7 +16,7 @@ import org.bson.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class MongoErmeticClient {
+public class MongoMongoDBClient {
 
     private static final Map<String, Integer> databaseDistribution = new LinkedHashMap<String, Integer> (){
         {
@@ -47,9 +47,9 @@ public class MongoErmeticClient {
     Logger logger;
     Random rd;
 
-    public MongoErmeticClient (String connectionString){
+    public MongoMongoDBClient (String connectionString){
 
-        logger = LoggerFactory.getLogger(MongoErmeticClient.class);
+        logger = LoggerFactory.getLogger(MongoMongoDBClient.class);
         try {
             // For not authentication via connection string passing of user/pass only
             mongoClient = MongoClients.create(connectionString);
